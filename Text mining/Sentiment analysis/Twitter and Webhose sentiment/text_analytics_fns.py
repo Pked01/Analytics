@@ -120,7 +120,8 @@ def preprocess_webhose_op(json_op):
     concat_tab=pd.concat([thread,meta_data,text],axis=1)
     return concat_tab
 
-def get_data_webhose(keyword="\"bangalore\" \"gauri\"",location="India",sort=None,realtime_flag=True,timeduration=30):
+
+def get_data_webhose(keyword=["modi","bjp"],location="India",sort=None,realtime_flag=True,timeduration=30):
     """
     return tabular output from webhose
     keyword:  api will look for all keywords in text space
@@ -132,6 +133,7 @@ def get_data_webhose(keyword="\"bangalore\" \"gauri\"",location="India",sort=Non
     tokens=['d4dfcbf5-ae63-4b33-a2f1-f13d0648cd8f','3025d12f-e409-42a3-83f0-8c992864a154','f414cd7e-a1d2-4483-af41-893ccc6f07']
     # append more tokens if required 
     tokens=deque(tokens)
+    keyword=" ".join(keyword)
     q=keyword+" location:"+location+" site_type:news OR site_type:blogs OR site_type:discussions"
     output=None
     if realtime_flag:
@@ -172,15 +174,35 @@ def get_data_webhose(keyword="\"bangalore\" \"gauri\"",location="India",sort=Non
         return op_all
     else:
         return op1
+    
+def get_blog_data_realtime(keyword=["modi","bjp"],location="India",sort=None):
+    """
+    return realtime tabular output from webhose
+    keyword:  api will look for all keywords in text space
+    location: country detail
+    sort : refer https://docs.webhose.io/v1.0/docs/get-parameters
+    """
+    return get_data_webhose(keyword,location,sort,realtime_flag=True)
+def get_blog_data_historical(keyword=["modi","bjp"],location="India",sort=None,timeduration=10):
+    """
+    return historical tabular output from webhose
+    keyword:  api will look for all keywords in text space
+    location: country detail
+    sort : refer https://docs.webhose.io/v1.0/docs/get-parameters
+    timeduration : duration in number of days
+    """
+    return get_data_webhose(keyword,location,sort,realtime_flag=False,timeduration=timeduration)
+    
 
 def get_tfidf_keywords(corpus,scoring_method='mean'):
     """
     returns keywords score based on scoring method provided
+    corpus : corpus of text
     scoring_method=mean/sum/
     """
     from sklearn.feature_extraction.text import TfidfVectorizer
     tfidf1=TfidfVectorizer(analyzer='word', ngram_range=(1,3), min_df = 0, stop_words = 'english')
-    tfidf_matrix=tfidf1.fit_transform([i for i in op_all['text']])
+    tfidf_matrix=tfidf1.fit_transform(corpus)
     feature_names = tfidf1.get_feature_names() 
     #dense = tfidf_matrix.todense()
     if scoring_method=='mean':
@@ -192,10 +214,10 @@ def get_tfidf_keywords(corpus,scoring_method='mean'):
 
 
 
-def summary_1(x,summarizer='SumBasicSummarizer',SENTENCES_COUNT=10):
+def summarize_text(x,summarizer='SumBasicSummarizer',sentence_count=5):
     """
     returns summarized output of text
-    x: list of sentences
+    x: list of sentences or paragraphs
     summarizer=['LsaSummarizer','LuhnSummarizer',\
        'EdmundsonSummarizer','LexRankSummarizer','TextRankSummarizer',\
       'SumBasicSummarizer','KLSummarizer']
@@ -208,14 +230,25 @@ def summary_1(x,summarizer='SumBasicSummarizer',SENTENCES_COUNT=10):
         try:
             summarizer_fn=eval(summarizer+'(stemmer)')
             parser=PlaintextParser(i,Tokenizer(LANGUAGE))
-            summary=summarizer_fn(parser.document, SENTENCES_COUNT)
+            summary=summarizer_fn(parser.document, sentence_count)
             l.append(" ".join([str(k) for k in summary]))
             
             #print(l)
         except Exception as e:
             print(e)
             pass
-    return ' '.join(l) 
+    if len(l)>1:    
+        return ' '.join(l) 
+    else:
+        return l[0]
+def summarize_combined(x,sentence_count=4):
+    """
+    returns summarized output of text thru TextRankSummrizer
+    x: list of sentences or paragraphs
+    sentence_count : number of sentences in summary
+    """
+    return summarize_text([summarize_text(x,sentence_count=sentence_count+4)],summarizer='TextRankSummarizer',sentence_count=sentence_count)
+
     
 #get_name_only=lambda name:''.join([i for i in name if not i.isdigit()]).replace("_","").lower()
 get_name_only=lambda name:re.sub('[^A-Za-z]+', '', name).lower()
@@ -252,23 +285,27 @@ def get_twitter_trend(location_name):
             print(e)
         
     return [get_name_only(i['name']) for i in t[0]['trends']]
-def get_sentiment_on_webhose(op_all,keywords):
-	"""
-	develop analytics in webhose data
+def get_sentiment_blog(op_all,keywords,source="blogs",take_all_data=False):
+    """
+	develop sentiment analytics in webhose data 
 	op_all : output dataframe from webhose
+    source : blogs/news/discussions
+    take_all_data : if you want to use all data
 	"""
-	print(op_all.shape)
-	op_all['status']=op_all['text'].\
-	str.contains("".join(["(?=.*?"+i+"[^$]*)" for i in keywords]),case=False)
+    print(op_all.shape)
+    op_all['status']=op_all['text'].\
+    str.contains("".join(["(?=.*?"+i+"[^$]*)" for i in keywords]),case=False)
 
-	op_all=op_all[op_all['status']]
-	print(op_all.shape)
-	sentiments_stat=op_all['text'].apply(lambda x: get_sentiment_stat(x))
-	op_all['published']=pd.DatetimeIndex(op_all['published'])
-	op_all['stats']=pd.DataFrame(sentiments_stat)   
-	op_all['median_sentiment_level']=op_all['stats'].apply(lambda x :x['overall sentiment median(+ve frequency)'])
-	op_all['date']=op_all['published'].apply(lambda x: x.date())
-	return op_all
+    op_all=op_all[op_all['status']]
+    if not take_all_data:
+        op_all=op_all[op_all['site_type']==source]
+    print(op_all.shape)
+    sentiments_stat=op_all['text'].apply(lambda x: get_sentiment_stat(x))
+    op_all['published']=pd.DatetimeIndex(op_all['published'])
+    op_all['stats']=pd.DataFrame(sentiments_stat)   
+    op_all['median_sentiment_level']=op_all['stats'].apply(lambda x :x['overall sentiment median(+ve frequency)'])
+    op_all['date']=op_all['published'].apply(lambda x: x.date())
+    return op_all
 
 #----------------------twitter streaming functions ----------------------------------------------------------
 class listener(StreamListener):
@@ -339,7 +376,7 @@ def get_tweets(keywords=['modi','NDA','kejriwal','iot'],time_limit=5,location='I
     tweets=[i['text'] for i in data]
     return pd.DataFrame({'text':tweets})
 
-def get_last_week_tweets(q='modi',count=100,result_type='recent',location='bangalore',distance='100km',days=7):
+def get_hist_tweets(q='modi',count=100,result_type='recent',location='bangalore',distance='100km',days=7):
     """
     It will return last 7 days tweets 
     https://dev.twitter.com/rest/reference/get/search/tweets
@@ -393,7 +430,7 @@ def clean_tweets(tweets_df):
 
 def plot_twitter_stats(tweets_df):
     """
-    visualization of tweets dataframe(made for jupyter notebook)
+    return sentiment dataframe, and its statistics and plot visualization of tweets dataframe(made for jupyter notebook) 
     tweets_df : tweets dataframe
     
     """
@@ -407,7 +444,7 @@ def plot_twitter_stats(tweets_df):
     tweets_df_word_li=tweets_df.copy()
     tweets_df_word_li['sentiment']=tweets_cleaned['text'].apply(lambda x: affn.score(x))
     tweets_df_word_li['sentiment_tag']=tweets_df_word_li['sentiment'].apply(lambda x:sentiment_tag(x) )
-    display(get_sentiment_statistics(plot_title='based on word list',tweets_df=tweets_df_word_li)) 
+    return (tweets_df_word_li,get_sentiment_statistics(plot_title='based on word list',tweets_df=tweets_df_word_li)) 
 
 #------------------cleaning generator for twitter data--------------------
 class TwitterCleanuper:

@@ -3,12 +3,13 @@
 ##  Applications:
 ### --> Surveillance system: Recognizing person(criminal/fugitive etc.) accross a video stream or CCTV.
 ### -->  Identification/ Login or attendence system.
-![image.png](attachment:image.png)
+<img src="image_1.png" alt="model in action">
+
 
 ## Model Theory
 ### 1. CNN based model is used to detect Face(Results in very less number of false negatives
 ### 2. Used Face-landmarks as feature to recognize faces(classification)
-![image.png](attachment:image.png)
+<img src="image_2.png" alt="Landmarks on Face">
 ### 3. Data preprocessing: 
 #### Data images are filtered(containing multiple faces)
 #### --> Class imbalance is removed using resampling and SMOTE
@@ -199,5 +200,5 @@ get_video_processed('Friends - HD - The Videotape-7qdwFQgMyVs.mp4',data_path=dat
 ```
 
 #### processed output
-vlcsnap-2018-01-11-22h46m06s165.png![image.png](attachment:image.png)
+<img src="image_3.png" alt="Output of Model">
 - Note: any output with less than .8 probablilty is not correct

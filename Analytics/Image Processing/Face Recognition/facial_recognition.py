@@ -255,12 +255,12 @@ def show_face(image_file):
         plt.imshow(image_file)
         plt.show()
 
-def show_landmarks(image_file):
+def show_landmarks(image_file,face_locations=None):
     """
     image_file: numpy array
     output:landmark on the image  
     """
-    face_landmarks_list=face_recognition.face_landmarks(image_file)
+    face_landmarks_list=face_recognition.face_landmarks(image_file,face_locations=face_locations)
     for landmarks in face_landmarks_list:
         for landmark_name,landmark_location in landmarks.items():
             #random color

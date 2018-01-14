@@ -201,27 +201,5 @@ get_video_processed('Friends - HD - The Videotape-7qdwFQgMyVs.mp4',data_path=dat
 ```
 
 #### processed output
-<img src="image_3.png" alt="Output of Model">
+[![Alt text for your video](image_3.png)](https://youtu.be/f0t1Y8qu410)
 - Note: any output with less than .8 probablilty is not correct
-
-#### output at 1FPS
-
-
-```python
-Disp.IFrame(data_path+series_name+'/'+'output.mp4',width=640,height=480)
-```
-
-
-
-
-
-        <iframe
-            width="640"
-            height="480"
-            src="data_folder/friends/output.mp4"
-            frameborder="0"
-            allowfullscreen
-        ></iframe>
-        
-
-
